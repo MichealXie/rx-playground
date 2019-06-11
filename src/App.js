@@ -38,18 +38,17 @@ import { audit } from 'rxjs/operators'
 function App() {
   const [todoItems, setTodoItems] = useState([])
   const $inputRef = useRef(null)
-  const $addBtnRef = useRef(null)
-  const $todoItems = useRef(null)
-  const $todoItem = useRef(null)
-  const itemClicked$ = new Subject()
-  itemClicked$.subscribe(console.log)
 
-  useEffect(() => {
-    const inputEnter$ = fromEvent($inputRef.current, 'keydown').pipe(
+  const itemClicked$ = new Subject().subscribe()
+  const addClicked$ = new Subject().subscribe()
+  const inputEnter$ = new Subject()
+    .pipe(
       filter(e => (e.key === 'Enter'))
     )
-    const addClicked$ = fromEvent($addBtnRef.current, 'click')
+    .subscribe(console.log)
 
+
+  useEffect(() => {
     const todoAdd$ = merge(addClicked$, inputEnter$)
       .pipe(
         map(() => $inputRef.current.value),
@@ -67,35 +66,22 @@ function App() {
         tap(updatedTodoItems => {
           setTodoItems(updatedTodoItems)
           $inputRef.current.value = ''
-          return $todoItems.current
         }),
-        map($todoItems => {
-          console.log($todoItems);
-        })
       )
 
-
-    todoAdd$.subscribe()
-
-
-    // const todoClicked$ = fromEvent($todoItems.current, 'click').pipe(
-    //   filter(e => e.target.nodeName.toUpperCase() === "LI"),
-    //   map(e => e.target),
-    // )
-
-    // todoClicked$.subscribe()
+    console.log(todoAdd$);
   })
 
   return (
     <div className="App">
       <div className="input-area">
-        <input type="text" className="todo-val" ref={$inputRef}/>
-        <div className="add-btn" ref={$addBtnRef}>添加</div>
+        <input type="text" className="todo-val" onChange={ e => inputEnter$.next(e) } ref={$inputRef}/>
+        <div className="add-btn" onClick={ e => addClicked$.next(e) }>添加</div>
       </div>
-      <ul className="todo-items" ref={$todoItems}>
+      <ul className="todo-items">
         {
           todoItems.map(item => (
-            <li className={`item ${item.done ? 'done' : ''}`} key={item.id} ref={$todoItem} onClick={e => { itemClicked$.next(e) }}>
+            <li className={`item ${item.done ? 'done' : ''}`} key={item.id} onClick={e => { itemClicked$.next(e) }}>
               {item.name}
             </li>
           ))
