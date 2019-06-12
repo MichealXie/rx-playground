@@ -1,38 +1,72 @@
 import React, { useEffect, useState, useRef } from 'react';
+import axios from "axios";
 import { fromEvent, merge, interval, Observable, from, of, Subject } from 'rxjs';
-import { tap, map, filter, take, mergeAll, mergeMap, flatMap, takeUntil } from 'rxjs/operators';
+import { tap, map, filter, take, mergeAll, mergeMap, flatMap, switchMap, takeUntil, debounceTime } from 'rxjs/operators';
 import './App.css';
 import { scan } from 'rxjs/operators';
 import { audit } from 'rxjs/operators'
 
 function App() {
-  useEffect(() => {
-    const $canvas = document.querySelector('.canvas')
-    const ctx = $canvas.getContext('2d')
-    ctx.beginPath()
-    const draw = e => {
-      ctx.lineTo(e.x, e.y); // 移到滑鼠在的位置
-      ctx.stroke(); // 畫畫
-    }
+  const [recommendItems, setRecommendItems] = useState([])
+  const [searchResults, setSearchResults] = useState([])
 
-    const clickDown$ = fromEvent($canvas, 'mousedown')
-      .pipe(
-        tap(e => {
-          ctx.moveTo(e.clientX, e.clientY)
-        }),
-        flatMap(e => {
-          return fromEvent($canvas, 'mousemove').pipe(
-            takeUntil(fromEvent($canvas, 'mouseup'))
-          )
-        }),
-        tap(draw),
-      )
-      .subscribe(console.log)
-  })
+  useEffect(() => {
+    const $input = document.querySelector('.input')
+    // 自动完成
+    fromEvent($input, 'keydown').pipe(
+      debounceTime(250),
+      switchMap(e => {
+        const value = $input.value
+        if (!value) return from([])
+        return from(axios.get(`http://127.0.0.1:7001/fe_api/burdock/v1/search/recommend?keyword=${value}`))
+      }),
+      map(res => (res.data.data)),
+      tap(setRecommendItems)
+    ).subscribe()
+
+    // 点击搜索
+    const recommendItems$ = document.querySelector('.recommend-items')
+    fromEvent(recommendItems$, 'click').pipe(
+      filter(e => (e.target.nodeName === 'LI')),
+      debounceTime(100),
+      map(e => e.target.innerHTML),
+      tap(keyword => {
+        $input.value = keyword
+        setRecommendItems([])
+      }),
+      flatMap(keyword => {
+        return from(axios.get(`http://127.0.0.1:7001/fe_api/burdock/v1/search/note?keyword=${keyword}`))
+      }),
+      map(res => (res.data.data.notes)),
+      tap(setSearchResults),
+    ).subscribe()
+
+  }, [recommendItems, searchResults])
 
   return (
     <div className="App">
-      <canvas className="canvas"></canvas>
+      <input type="text" className="input"/>
+      <div className="recommend-items">
+        {
+          recommendItems.map(item => (
+            <li className="recommend-item" key={item.text + item.type} >
+              {item.text}
+            </li>
+          ))
+        }
+      </div>
+      <div className="search-result">
+        {
+          searchResults.map(item => (
+            <div className="">
+              <img className="note-cover" src={item.cover.url} alt="" />
+              <li className="search-result">
+                {item.title}
+              </li>
+            </div>
+          ))
+        }
+      </div>
     </div>
   );
 }
