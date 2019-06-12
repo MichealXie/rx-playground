@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import axios from "axios";
 import { fromEvent, merge, interval, Observable, from, of, Subject } from 'rxjs';
-import { tap, map, filter, take, mergeAll, mergeMap, flatMap, switchMap, takeUntil, debounceTime } from 'rxjs/operators';
+import { tap, map, filter, take, mergeAll, mergeMap, flatMap, switchMap, takeUntil, debounceTime, retry, mapTo} from 'rxjs/operators';
 import './App.css';
 import { scan } from 'rxjs/operators';
 import { audit } from 'rxjs/operators'
@@ -22,24 +22,22 @@ function App() {
       }),
       map(res => (res.data.data)),
       tap(setRecommendItems)
-    ).subscribe()
+    ).subscribe(console.log)
 
     // 点击搜索
-    const recommendItems$ = document.querySelector('.recommend-items')
-    fromEvent(recommendItems$, 'click').pipe(
+    const $recommendItems = document.querySelector('.recommend-items')
+
+    fromEvent($recommendItems, 'click', false).pipe(
       filter(e => (e.target.nodeName === 'LI')),
-      debounceTime(100),
       map(e => e.target.innerHTML),
       tap(keyword => {
         $input.value = keyword
         setRecommendItems([])
       }),
-      flatMap(keyword => {
-        return from(axios.get(`http://127.0.0.1:7001/fe_api/burdock/v1/search/note?keyword=${keyword}`))
-      }),
+      flatMap(keyword => (from(axios.get(`http://127.0.0.1:7001/fe_api/burdock/v1/search/note?keyword=${keyword}`)))),
       map(res => (res.data.data.notes)),
       tap(setSearchResults),
-    ).subscribe()
+    ).subscribe(console.log)
 
   }, [recommendItems, searchResults])
 
